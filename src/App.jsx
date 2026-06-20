@@ -10,6 +10,8 @@ const Reading = lazy(() => import('./pages/Reading'))
 const Writing = lazy(() => import('./pages/Writing'))
 const Speaking = lazy(() => import('./pages/Speaking'))
 const Guide = lazy(() => import('./pages/Guide'))
+const Mistakes = lazy(() => import('./pages/Mistakes'))
+const MockTest = lazy(() => import('./pages/MockTest'))
 
 function Loading() {
   return (
@@ -32,6 +34,8 @@ export default function App() {
             <Route path="/writing" element={<ErrorBoundary><Writing /></ErrorBoundary>} />
             <Route path="/speaking" element={<ErrorBoundary><Speaking /></ErrorBoundary>} />
             <Route path="/guide" element={<ErrorBoundary><Guide /></ErrorBoundary>} />
+            <Route path="/mistakes" element={<ErrorBoundary><Mistakes /></ErrorBoundary>} />
+            <Route path="/mock-test" element={<ErrorBoundary><MockTest /></ErrorBoundary>} />
           </Routes>
         </Suspense>
       </Layout>

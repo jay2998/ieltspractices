@@ -13,6 +13,8 @@ const pageTitles = {
   '/writing': 'Writing',
   '/speaking': 'Speaking',
   '/guide': 'Guide',
+  '/mistakes': 'Review Mistakes',
+  '/mock-test': 'Mock Test',
 }
 
 const navItems = [
@@ -25,6 +27,8 @@ const navItems = [
 
 const moreItems = [
   { path: '/guide', label: 'Guide', icon: '🎯', accent: 'hover:border-emerald-500' },
+  { path: '/mistakes', label: 'Mistakes', icon: '✅', accent: 'hover:border-green-500' },
+  { path: '/mock-test', label: 'Mock Test', icon: '📝', accent: 'hover:border-purple-500' },
 ]
 
 function UserMenu({ dark }) {

@@ -87,6 +87,18 @@ export function saveProgress(skill, questionId, data) {
   localStorage.setItem(userKey('progress'), JSON.stringify(progress))
 }
 
+export function getMistakes() {
+  const progress = getProgress()
+  const mistakes = []
+  for (const skill of ['listening', 'reading']) {
+    const data = progress[skill] || {}
+    for (const [qid, entry] of Object.entries(data)) {
+      if (!entry.correct) mistakes.push({ id: qid, skill, type: entry.type })
+    }
+  }
+  return mistakes
+}
+
 export function getStats(totals) {
   const progress = getProgress()
   const stats = {}

@@ -5,6 +5,7 @@ import QuestionCard from '../components/QuestionCard'
 import ProgressBar from '../components/ProgressBar'
 import Timer from '../components/Timer'
 import ReadingDiagram from '../components/ReadingDiagram'
+import ReviewPanel from '../components/ReviewPanel'
 
 const readingGuide = {
   title: '📖 Reading Test Guide',
@@ -30,6 +31,12 @@ export default function Reading() {
   const [showResults, setShowResults] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
   const [showPassage, setShowPassage] = useState(true)
+  const [search, setSearch] = useState('')
+
+  const filteredPassages = passages.filter(p => {
+    if (search && !p.title.toLowerCase().includes(search.toLowerCase())) return false
+    return true
+  })
 
   function startPassage(id) {
     setActivePassage(id)
@@ -44,7 +51,8 @@ export default function Reading() {
 
   function handleAnswer(questionId, correct) {
     setAnswers(prev => ({ ...prev, [questionId]: correct }))
-    saveProgress('reading', questionId, { correct })
+    const q = passageQs.find(x => x.id === questionId)
+    saveProgress('reading', questionId, { correct, type: q?.type })
   }
 
   const answeredCount = Object.keys(answers).length
@@ -90,10 +98,23 @@ export default function Reading() {
         )}
       </div>
 
+      {/* Search */}
+      {!activePassage && (
+        <div className="mb-6">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search passages..."
+            className="input-field"
+          />
+        </div>
+      )}
+
       {/* Passage selector */}
       {!activePassage && (
         <div className="grid md:grid-cols-2 gap-4 mb-8">
-          {passages.map((p, idx) => (
+          {filteredPassages.map((p, idx) => (
             <button
               key={p.id}
               onClick={() => startPassage(p.id)}
@@ -174,22 +195,12 @@ export default function Reading() {
           </div>
 
           {answeredCount === passageQs.length && passageQs.length > 0 && (
-            <div className="mt-6 card bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-200 dark:border-red-800">
-              <div className="text-center py-4">
-                <div className="text-4xl font-bold text-red-600 mb-2">{correctCount}/{answeredCount}</div>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {correctCount === passageQs.length
-                    ? 'Perfect score! Excellent reading comprehension! 🎉'
-                    : correctCount >= passageQs.length * 0.7
-                      ? 'Great work! You\'re on track for Band 7+ 👍'
-                      : 'Keep practicing — focus on skimming and scanning techniques.'}
-                </p>
-                <div className="flex gap-3 justify-center flex-wrap">
-                  <button onClick={() => startPassage(passage.id)} className="btn-primary">Retry this passage</button>
-                  <button onClick={() => setActivePassage(null)} className="btn-secondary">Try another passage</button>
-                </div>
-              </div>
-            </div>
+            <ReviewPanel
+              questions={passageQs}
+              answers={answers}
+              onRetry={() => startPassage(passage.id)}
+              onBack={() => setActivePassage(null)}
+            />
           )}
 
           {showResults && answeredCount < passageQs.length && (

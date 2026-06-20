@@ -1,5 +1,9 @@
 import { useState, useMemo } from 'react'
 import { toggleBookmark, getBookmarks } from '../utils/storage'
+import MultipleChoice from './questions/MultipleChoice'
+import TrueFalse from './questions/TrueFalse'
+import TextInput from './questions/TextInput'
+import MatchingDropdown from './questions/MatchingDropdown'
 
 function shuffle(arr) {
   const a = [...arr]
@@ -42,7 +46,6 @@ function checkAnswer(userAnswer, correctAnswer, questionType) {
       return alternatives.some(alt => wordsEqual(user, alt))
     }
   }
-
   return false
 }
 
@@ -57,6 +60,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   const isMatching = question.type === 'matching'
   const isTextInput = isForm || question.type === 'short-answer' || question.type === 'sentence-completion' || question.type === 'summary-completion' || question.type === 'map-labeling' || question.type === 'diagram-labeling'
   const isDropDownMatch = isMatching || question.type === 'matching-headings' || question.type === 'matching-features' || question.type === 'matching-information'
+  const isTFNG = question.type === 'true-false-not-given' || question.type === 'yes-no-not-given'
 
   const shuffled = useMemo(() => {
     if (isMCQ && question.options) {
@@ -90,7 +94,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   const displayAnswer = shuffled.answer || question.answer
 
   function handleSubmit() {
-    const isSelectedType = question.type === 'multiple-choice' || isDropDownMatch || question.type === 'true-false-not-given' || question.type === 'yes-no-not-given'
+    const isSelectedType = isMCQ || isDropDownMatch || isTFNG
     if (isSelectedType) {
       onAnswer(selected === displayAnswer)
     } else {
@@ -104,35 +108,11 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
     setBookmarked(updated.includes(question.id))
   }
 
-  const displayOptions = shuffled.options || question.options
-  const displayMatches = shuffled.matches || question.matches
-  const displayHeadings = shuffled.headings || question.headings
-  const displayFeatures = shuffled.features || question.features
-
-  const matchItems = displayMatches
-    ? Object.entries(displayMatches).map(([k, v]) => ({ value: k, label: `${k} — ${v}` }))
-    : displayHeadings
-      ? displayHeadings.map((h, i) => ({ value: String.fromCharCode(65 + i), label: `${String.fromCharCode(65 + i)}. ${h}` }))
-      : displayFeatures
-        ? displayFeatures.map((f, i) => ({ value: String.fromCharCode(65 + i), label: `${String.fromCharCode(65 + i)}. ${f}` }))
-        : isDropDownMatch
-          ? Array.from({ length: Math.max(question.answer?.charCodeAt(0) - 64 || 6, 6) }, (_, i) => {
-              const letter = String.fromCharCode(65 + i)
-              return { value: letter, label: `Paragraph ${letter}` }
-            })
-          : []
-
   const answerCorrect = revealed && (
-    isMCQ || isDropDownMatch || question.type === 'true-false-not-given' || question.type === 'yes-no-not-given'
+    isMCQ || isDropDownMatch || isTFNG
       ? selected === displayAnswer
       : checkAnswer(textAnswer, question.answer, question.type)
   )
-
-  const textPlaceholder = question.type === 'form-completion' || question.type === 'note-completion' || question.type === 'table-completion'
-    ? 'ONE WORD AND/OR A NUMBER'
-    : question.type === 'summary-completion'
-      ? 'NO MORE THAN THREE WORDS'
-      : 'Type your answer...'
 
   return (
     <div className={`card mb-4 border-l-4 ${
@@ -159,107 +139,40 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         <p className="mb-3 text-sm italic text-gray-500 dark:text-gray-400">{question.instructions}</p>
       )}
 
-      {isMCQ && displayOptions && (
-        <div className="space-y-2 mb-4" role="radiogroup" aria-label="Answer options">
-          {displayOptions.map((opt, idx) => {
-            const letter = String.fromCharCode(65 + idx)
-            const isSelected = selected === letter
-            const isCorrect = letter === displayAnswer
-            return (
-              <button
-                key={idx}
-                role="radio"
-                aria-checked={isSelected}
-                onClick={() => !revealed && setSelected(letter)}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                  revealed
-                    ? isCorrect
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-800 dark:text-green-200'
-                      : isSelected && !isCorrect
-                        ? 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-800 dark:text-red-200'
-                        : 'border-gray-200 dark:border-gray-600'
-                    : isSelected
-                      ? 'bg-ielts-50 border-ielts-500 dark:bg-ielts-900/30'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-ielts-300'
-                }`}
-                disabled={revealed}
-              >
-                <span className="font-bold mr-2">{letter}.</span>
-                {opt.text || opt}
-              </button>
-            )
-          })}
-        </div>
+      {isMCQ && (
+        <MultipleChoice
+          question={{ ...question, options: shuffled.options || question.options, answer: displayAnswer }}
+          revealed={revealed}
+          selected={selected}
+          onSelect={setSelected}
+        />
       )}
 
       {isTextInput && (
-        <div className="mb-4">
-          <label htmlFor={`answer-${question.id}`} className="sr-only">Your answer</label>
-          <input
-            id={`answer-${question.id}`}
-            type="text"
-            value={textAnswer}
-            onChange={e => setTextAnswer(e.target.value)}
-            placeholder={textPlaceholder}
-            className="input-field"
-            disabled={revealed}
-          />
-        </div>
+        <TextInput
+          question={question}
+          revealed={revealed}
+          value={textAnswer}
+          onChange={setTextAnswer}
+        />
       )}
 
-      {(question.type === 'true-false-not-given' || question.type === 'yes-no-not-given') && (
-        <fieldset className="mb-4">
-          <legend className="sr-only">Select true, false, or not given</legend>
-          <div className="flex flex-wrap gap-2">
-            {['True', 'False', 'Not Given'].map(opt => {
-              const value = question.type === 'yes-no-not-given'
-                ? opt.replace('True', 'Yes').replace('False', 'No')
-                : opt
-              const isSelected = selected === value
-              const isCorrect = value === question.answer
-              return (
-                <button
-                  key={opt}
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => !revealed && setSelected(value)}
-                  className={`px-4 py-2 rounded-lg border transition-colors ${
-                    revealed
-                      ? isCorrect
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
-                        : isSelected && !isCorrect
-                          ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
-                          : 'border-gray-200 dark:border-gray-600'
-                      : isSelected
-                        ? 'bg-ielts-50 border-ielts-500'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-ielts-300'
-                  }`}
-                  disabled={revealed}
-                >
-                  {value}
-                </button>
-              )
-            })}
-          </div>
-        </fieldset>
+      {isTFNG && (
+        <TrueFalse
+          question={question}
+          revealed={revealed}
+          selected={selected}
+          onSelect={setSelected}
+        />
       )}
 
-      {isDropDownMatch && matchItems.length > 0 && (
-        <div className="mb-4">
-          <label htmlFor={`match-${question.id}`} className="sr-only">Select match</label>
-          <select
-            id={`match-${question.id}`}
-            value={selected}
-            onChange={e => setSelected(e.target.value)}
-            className="input-field"
-            disabled={revealed}
-          >
-            <option value="">Select...</option>
-            {matchItems.map((item, i) => (
-              <option key={i} value={item.value}>{item.label}</option>
-            ))}
-          </select>
-        </div>
+      {isDropDownMatch && (
+        <MatchingDropdown
+          question={question}
+          revealed={revealed}
+          selected={selected}
+          onSelect={setSelected}
+        />
       )}
 
       {!revealed && (
@@ -277,7 +190,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
           correct={answerCorrect}
           answer={question.answer}
           explanation={question.explanation}
-          userAnswer={isMCQ || isDropDownMatch || question.type === 'true-false-not-given' || question.type === 'yes-no-not-given' ? selected : textAnswer}
+          userAnswer={isMCQ || isDropDownMatch || isTFNG ? selected : textAnswer}
         />
       )}
     </div>

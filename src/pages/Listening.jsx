@@ -6,6 +6,7 @@ import QuestionCard from '../components/QuestionCard'
 import ProgressBar from '../components/ProgressBar'
 import Timer from '../components/Timer'
 import ListeningMap from '../components/ListeningMap'
+import ReviewPanel from '../components/ReviewPanel'
 
 const listeningGuide = {
   title: '🎧 Listening Test Guide',
@@ -30,8 +31,16 @@ export default function Listening() {
   const [answers, setAnswers] = useState({})
   const [showResults, setShowResults] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
+  const [search, setSearch] = useState('')
+  const [filterType, setFilterType] = useState('')
 
   const totalSections = sections.length
+  const sectionTypes = [...new Set(sections.map(s => s.type))]
+  const filteredSections = sections.filter(s => {
+    if (search && !s.title.toLowerCase().includes(search.toLowerCase())) return false
+    if (filterType && s.type !== filterType) return false
+    return true
+  })
 
   function startSection(id) {
     setActiveSection(id)
@@ -45,7 +54,8 @@ export default function Listening() {
 
   function handleAnswer(questionId, correct) {
     setAnswers(prev => ({ ...prev, [questionId]: correct }))
-    saveProgress('listening', questionId, { correct })
+    const q = sectionQs.find(x => x.id === questionId)
+    saveProgress('listening', questionId, { correct, type: q?.type })
   }
 
   const answeredCount = Object.keys(answers).length
@@ -91,10 +101,33 @@ export default function Listening() {
         )}
       </div>
 
+      {/* Search & filter */}
+      {!activeSection && (
+        <div className="flex flex-wrap gap-3 mb-6">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search sections..."
+            className="input-field flex-1 min-w-[200px]"
+          />
+          <select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+            className="input-field w-auto"
+          >
+            <option value="">All types</option>
+            {sectionTypes.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Section selector */}
       {!activeSection && (
         <div className="grid md:grid-cols-2 gap-4 mb-8">
-          {sections.map((s, idx) => (
+          {filteredSections.map((s, idx) => (
             <button
               key={s.id}
               onClick={() => startSection(s.id)}
@@ -162,32 +195,12 @@ export default function Listening() {
           </div>
 
           {answeredCount === sectionQs.length && sectionQs.length > 0 && (
-            <div className="mt-6 card bg-gradient-to-r from-ielts-50 to-red-50 dark:from-ielts-900/20 dark:to-red-900/20 border border-ielts-200 dark:border-ielts-800">
-              <div className="text-center py-4">
-                <div className="text-4xl font-bold text-ielts-600 mb-2">{correctCount}/{answeredCount}</div>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {correctCount === sectionQs.length
-                    ? 'Perfect score! Excellent work! 🎉'
-                    : correctCount >= sectionQs.length * 0.7
-                      ? 'Good job! You\'re on track for Band 7+ 👍'
-                      : 'Keep practicing — review the explanations above.'}
-                </p>
-                <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={() => startSection(section.id)}
-                    className="btn-primary"
-                  >
-                    Retry this section
-                  </button>
-                  <button
-                    onClick={() => setActiveSection(null)}
-                    className="btn-secondary"
-                  >
-                    Try another section
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ReviewPanel
+              questions={sectionQs}
+              answers={answers}
+              onRetry={() => startSection(section.id)}
+              onBack={() => setActiveSection(null)}
+            />
           )}
 
           {showResults && answeredCount < sectionQs.length && (
