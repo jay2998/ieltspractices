@@ -87,14 +87,22 @@ export function saveProgress(skill, questionId, data) {
   localStorage.setItem(userKey('progress'), JSON.stringify(progress))
 }
 
-export function getStats() {
+export function getStats(totals) {
   const progress = getProgress()
   const stats = {}
   for (const skill of ['listening', 'reading', 'writing', 'speaking']) {
     const data = progress[skill] || {}
-    const total = Object.keys(data).length
+    const answered = Object.keys(data).length
     const correct = Object.values(data).filter(d => d.correct).length
-    stats[skill] = { total, correct, percentage: total > 0 ? Math.round((correct / total) * 100) : 0 }
+    const totalAvailable = totals?.[skill]
+    stats[skill] = {
+      answered,
+      correct,
+      total: answered,
+      percentage: totalAvailable
+        ? Math.round((answered / totalAvailable) * 100)
+        : answered > 0 ? Math.round((correct / answered) * 100) : 0
+    }
   }
   return stats
 }

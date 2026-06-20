@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { getTheme, setTheme, getStats, getActiveUser, setActiveUser, getUsers, addUser, renameUser } from '../utils/storage'
+import { listeningData } from '../data/listening'
+import { readingData } from '../data/reading'
+import { writingData } from '../data/writing'
+import { speakingData } from '../data/speaking'
 
 const navItems = [
   { path: '/', label: 'Home', icon: '📊', accent: 'hover:border-gray-400' },
@@ -148,11 +152,17 @@ export default function Layout({ children }) {
   const location = useLocation()
   const [dark, setDark] = useState(getTheme() === 'dark')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [stats, setStats] = useState(getStats())
+  const totals = {
+    listening: listeningData.sections.reduce((s, sec) => s + sec.questions.length, 0),
+    reading: readingData.passages.reduce((s, p) => s + p.questions.length, 0),
+    writing: writingData.task1.length + writingData.task2.length,
+    speaking: speakingData.part1.length + speakingData.part2.length + speakingData.part3.length,
+  }
+  const [stats, setStats] = useState(getStats(totals))
   const [user, setUser] = useState(getActiveUser())
 
   useEffect(() => {
-    setStats(getStats())
+    setStats(getStats(totals))
   }, [location])
 
   function toggleTheme() {
