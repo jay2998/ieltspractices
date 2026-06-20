@@ -34,6 +34,22 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
 
   function isAnswerCorrect(userAnswer, correctAnswer) {
     const user = normalizeText(userAnswer)
+    const multiPart = question.type === 'summary-completion' || question.type === 'note-completion' || question.type === 'table-completion' || question.type === 'form-completion'
+    if (multiPart && correctAnswer.includes(' / ')) {
+      const parts = correctAnswer.split(' / ').map(a => normalizeText(a))
+      const userParts = user.split('/').map(a => a.trim()).filter(Boolean)
+      if (userParts.length === 0) return false
+      let matchedCount = 0
+      for (const part of parts) {
+        for (const up of userParts) {
+          if (up === part || up.includes(part) || part.includes(up)) {
+            matchedCount++
+            break
+          }
+        }
+      }
+      if (matchedCount >= parts.length) return true
+    }
     const hasSlashAlternatives = question.type === 'short-answer' || question.type === 'diagram-labeling' || question.type === 'map-labeling' || question.type === 'sentence-completion'
     if (hasSlashAlternatives && correctAnswer.includes(' / ')) {
       const alternatives = correctAnswer.split(' / ').map(a => normalizeText(a))
@@ -55,7 +71,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   }
 
   const matchItems = question.matches
-    ? Object.entries(question.matches).map(([k, v]) => ({ value: k, label: `${k}. ${v}` }))
+    ? Object.entries(question.matches).map(([k, v]) => ({ value: k, label: `${k} — ${v}` }))
     : question.headings
       ? question.headings.map((h, i) => ({ value: String.fromCharCode(65 + i), label: `${String.fromCharCode(65 + i)}. ${h}` }))
       : question.features
