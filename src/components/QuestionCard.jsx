@@ -1,5 +1,14 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { toggleBookmark, getBookmarks } from '../utils/storage'
+
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
 
 export default function QuestionCard({ question, onAnswer, showResult, questionNumber }) {
   const [selected, setSelected] = useState('')
@@ -7,10 +16,47 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   const [bookmarked, setBookmarked] = useState(() => getBookmarks().includes(question.id))
   const [revealed, setRevealed] = useState(false)
 
+  const isMCQ = question.type === 'multiple-choice'
+  const isForm = question.type?.includes('form') || question.type?.includes('note') || question.type?.includes('table')
+  const isMatching = question.type === 'matching'
+  const isTextInput = isForm || question.type === 'short-answer' || question.type === 'sentence-completion' || question.type === 'summary-completion' || question.type === 'map-labeling' || question.type === 'diagram-labeling'
+  const isDropDownMatch = isMatching || question.type === 'matching-headings' || question.type === 'matching-features' || question.type === 'matching-information'
+
+  const shuffled = useMemo(() => {
+    if (isMCQ && question.options) {
+      const shuffled = shuffle(question.options)
+      const correctText = question.options[question.answer.charCodeAt(0) - 65]
+      const newIdx = shuffled.indexOf(correctText)
+      const newAnswer = String.fromCharCode(65 + newIdx)
+      return { options: shuffled, answer: newAnswer }
+    }
+    if (question.matches) {
+      const entries = shuffle(Object.entries(question.matches))
+      return { matches: Object.fromEntries(entries) }
+    }
+    if (question.headings) {
+      const shuffled = shuffle(question.headings)
+      const correctText = question.headings[question.answer.charCodeAt(0) - 65]
+      const newIdx = shuffled.indexOf(correctText)
+      const newAnswer = String.fromCharCode(65 + newIdx)
+      return { headings: shuffled, answer: newAnswer }
+    }
+    if (question.features) {
+      const shuffled = shuffle(question.features)
+      const correctText = question.features[question.answer.charCodeAt(0) - 65]
+      const newIdx = shuffled.indexOf(correctText)
+      const newAnswer = String.fromCharCode(65 + newIdx)
+      return { features: shuffled, answer: newAnswer }
+    }
+    return {}
+  }, [question.id])
+
+  const displayAnswer = shuffled.answer || question.answer
+
   function handleSubmit() {
     const isSelectedType = question.type === 'multiple-choice' || isDropDownMatch || question.type === 'true-false-not-given' || question.type === 'yes-no-not-given'
     if (isSelectedType) {
-      onAnswer(selected === question.answer)
+      onAnswer(selected === displayAnswer)
     } else {
       onAnswer(isAnswerCorrect(textAnswer, question.answer))
     }
@@ -21,12 +67,6 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
     const updated = toggleBookmark(question.id)
     setBookmarked(updated.includes(question.id))
   }
-
-  const isMCQ = question.type === 'multiple-choice'
-  const isForm = question.type?.includes('form') || question.type?.includes('note') || question.type?.includes('table')
-  const isMatching = question.type === 'matching'
-  const isTextInput = isForm || question.type === 'short-answer' || question.type === 'sentence-completion' || question.type === 'summary-completion' || question.type === 'map-labeling' || question.type === 'diagram-labeling'
-  const isDropDownMatch = isMatching || question.type === 'matching-headings' || question.type === 'matching-features' || question.type === 'matching-information'
 
   function normalizeText(text) {
     return text.trim().toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/\s*\([^)]*\)/g, '').replace(/[^a-z0-9\s\/-]/g, '').trim()
@@ -70,12 +110,17 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
     return false
   }
 
-  const matchItems = question.matches
-    ? Object.entries(question.matches).map(([k, v]) => ({ value: k, label: `${k} — ${v}` }))
-    : question.headings
-      ? question.headings.map((h, i) => ({ value: String.fromCharCode(65 + i), label: `${String.fromCharCode(65 + i)}. ${h}` }))
-      : question.features
-        ? question.features.map((f, i) => ({ value: String.fromCharCode(65 + i), label: `${String.fromCharCode(65 + i)}. ${f}` }))
+  const displayOptions = shuffled.options || question.options
+  const displayMatches = shuffled.matches || question.matches
+  const displayHeadings = shuffled.headings || question.headings
+  const displayFeatures = shuffled.features || question.features
+
+  const matchItems = displayMatches
+    ? Object.entries(displayMatches).map(([k, v]) => ({ value: k, label: `${k} — ${v}` }))
+    : displayHeadings
+      ? displayHeadings.map((h, i) => ({ value: String.fromCharCode(65 + i), label: `${String.fromCharCode(65 + i)}. ${h}` }))
+      : displayFeatures
+        ? displayFeatures.map((f, i) => ({ value: String.fromCharCode(65 + i), label: `${String.fromCharCode(65 + i)}. ${f}` }))
         : isDropDownMatch
           ? Array.from({ length: Math.max(question.answer?.charCodeAt(0) - 64 || 6, 6) }, (_, i) => {
               const letter = String.fromCharCode(65 + i)
@@ -85,7 +130,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
 
   const answerCorrect = revealed && (
     isMCQ || isDropDownMatch || question.type === 'true-false-not-given' || question.type === 'yes-no-not-given'
-      ? selected === question.answer
+      ? selected === displayAnswer
       : isAnswerCorrect(textAnswer, question.answer)
   )
 
@@ -108,20 +153,18 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         </button>
       </div>
 
-      {/* Question text */}
       <p className="mb-4 text-gray-800 dark:text-gray-100 leading-relaxed">{question.question}</p>
 
       {question.instructions && (
         <p className="mb-3 text-sm italic text-gray-500 dark:text-gray-400">{question.instructions}</p>
       )}
 
-      {/* Multiple choice */}
-      {isMCQ && question.options && (
+      {isMCQ && displayOptions && (
         <div className="space-y-2 mb-4">
-          {question.options.map((opt, idx) => {
+          {displayOptions.map((opt, idx) => {
             const letter = String.fromCharCode(65 + idx)
             const isSelected = selected === letter
-            const isCorrect = letter === question.answer
+            const isCorrect = letter === displayAnswer
             return (
               <button
                 key={idx}
@@ -147,7 +190,6 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         </div>
       )}
 
-      {/* Text input (form, short-answer, map-labeling, etc.) */}
       {isTextInput && (
         <div className="mb-4">
           <input
@@ -161,7 +203,6 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         </div>
       )}
 
-      {/* True/False/Not Given */}
       {(question.type === 'true-false-not-given' || question.type === 'yes-no-not-given') && (
         <div className="flex flex-wrap gap-2 mb-4">
           {['True', 'False', 'Not Given'].map(opt => {
@@ -194,7 +235,6 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         </div>
       )}
 
-      {/* Matching dropdown */}
       {isDropDownMatch && matchItems.length > 0 && (
         <div className="mb-4">
           <select
@@ -211,7 +251,6 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         </div>
       )}
 
-      {/* Submit */}
       {!revealed && (
         <button
           onClick={handleSubmit}
@@ -222,7 +261,6 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         </button>
       )}
 
-      {/* Results */}
       {revealed && (
         <AnswerReveal
           correct={answerCorrect}
