@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { speakingData } from '../data/speaking'
 import { saveProgress } from '../utils/storage'
+import Timer from '../components/Timer'
 import ProgressBar from '../components/ProgressBar'
 
 const speakingGuide = {
@@ -25,10 +26,16 @@ export default function Speaking() {
   const [activeTopic, setActiveTopic] = useState(null)
   const [showTips, setShowTips] = useState(true)
   const [completed, setCompleted] = useState(0)
+  const [prepRunning, setPrepRunning] = useState(false)
+  const [speakRunning, setSpeakRunning] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [audioUrl, setAudioUrl] = useState(null)
+  const mediaRecorder = useRef(null)
+  const audioChunks = useRef([])
 
   const dataMap = {
     part1: { label: 'Part 1 · Interview', data: speakingData.part1, icon: '🗣️', color: 'red' },
-    part2: { label: 'Part 2 · Long Turn', data: speakingData.part2, icon: '🎭', color: 'amber' },
+    part2: { label: 'Part 2 · Long Turn', data: speakingData.part2, icon: '🎭', color: 'amber', timer: true },
     part3: { label: 'Part 3 · Discussion', data: speakingData.part3, icon: '💬', color: 'rose' },
   }
 
@@ -38,11 +45,43 @@ export default function Speaking() {
   function startTopic(topic) {
     setActiveTopic(topic)
     setShowTips(true)
+    setPrepRunning(current.timer)
+    setSpeakRunning(false)
+    setAudioUrl(null)
   }
 
   function markComplete(id) {
     setCompleted(prev => prev + 1)
     saveProgress('speaking', id, { correct: true })
+  }
+
+  function handlePrepDone() {
+    setPrepRunning(false)
+    setSpeakRunning(true)
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      mediaRecorder.current = recorder
+      audioChunks.current = []
+      recorder.ondataavailable = e => audioChunks.current.push(e.data)
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunks.current, { type: 'audio/wav' })
+        setAudioUrl(URL.createObjectURL(blob))
+        stream.getTracks().forEach(t => t.stop())
+      }
+      recorder.start()
+      setRecording(true)
+    } catch {
+      alert('Microphone access denied. Please allow microphone permissions.')
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorder.current?.stop()
+    setRecording(false)
   }
 
   return (
@@ -79,7 +118,7 @@ export default function Speaking() {
         {Object.entries(dataMap).map(([key, val]) => (
           <button
             key={key}
-            onClick={() => { setActiveTab(key); setActiveTopic(null) }}
+            onClick={() => { setActiveTab(key); setActiveTopic(null); setAudioUrl(null) }}
             className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
               activeTab === key
                 ? 'bg-red-600 text-white'
@@ -130,19 +169,31 @@ export default function Speaking() {
       {/* Active topic */}
       {activeTopic && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <button
-              onClick={() => setActiveTopic(null)}
+              onClick={() => { setActiveTopic(null); setPrepRunning(false); setSpeakRunning(false); setAudioUrl(null) }}
               className="btn-secondary text-sm"
             >
               ← Back to topics
             </button>
-            <button
-              onClick={() => markComplete(activeTopic.id)}
-              className="btn-primary text-sm"
-            >
-              ✓ Mark as practiced
-            </button>
+            <div className="flex items-center gap-3">
+              {current.timer && (
+                <>
+                  {prepRunning && (
+                    <Timer initialMinutes={1} onTimeUp={handlePrepDone} running={prepRunning} />
+                  )}
+                  {speakRunning && (
+                    <Timer initialMinutes={2} onTimeUp={() => setSpeakRunning(false)} running={speakRunning} />
+                  )}
+                </>
+              )}
+              <button
+                onClick={() => markComplete(activeTopic.id)}
+                className="btn-primary text-sm"
+              >
+                ✓ Mark as practiced
+              </button>
+            </div>
           </div>
 
           {/* Cue card (Part 2) */}
@@ -163,6 +214,28 @@ export default function Speaking() {
               <h2 className="text-xl font-bold">{activeTopic.topic}</h2>
               <span className="text-sm text-gray-500">{current.label}</span>
             </div>
+          </div>
+
+          {/* Audio recording */}
+          <div className="card mb-6">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">🎙️ Record Your Response</h3>
+            <div className="flex gap-3 items-center">
+              {!recording ? (
+                <button onClick={startRecording} className="btn-primary text-sm" disabled={speakRunning && !prepRunning}>
+                  ⏺ Start Recording
+                </button>
+              ) : (
+                <button onClick={stopRecording} className="btn-secondary text-sm">
+                  ⏹ Stop Recording
+                </button>
+              )}
+              {recording && <span className="text-sm text-red-500 animate-pulse">Recording...</span>}
+            </div>
+            {audioUrl && (
+              <div className="mt-3">
+                <audio controls src={audioUrl} className="w-full" />
+              </div>
+            )}
           </div>
 
           {/* Questions and model responses */}

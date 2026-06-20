@@ -9,7 +9,14 @@ export default function ProgressBar({ current, total, label }) {
           <span className="text-sm text-gray-500">{current}/{total} ({pct}%)</span>
         </div>
       )}
-      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+      <div
+        className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5"
+        role="progressbar"
+        aria-valuenow={current}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuetext={`${current} of ${total} (${pct}%)`}
+      >
         <div
           className="bg-ielts-500 h-2.5 rounded-full transition-all duration-500"
           style={{ width: `${pct}%` }}

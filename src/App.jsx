@@ -1,27 +1,40 @@
+import { Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import WelcomeModal from './components/WelcomeModal'
-import Home from './pages/Home'
-import Listening from './pages/Listening'
-import Reading from './pages/Reading'
-import Writing from './pages/Writing'
-import Speaking from './pages/Speaking'
-import Guide from './pages/Guide'
+import ErrorBoundary from './components/ErrorBoundary'
+
+const Home = lazy(() => import('./pages/Home'))
+const Listening = lazy(() => import('./pages/Listening'))
+const Reading = lazy(() => import('./pages/Reading'))
+const Writing = lazy(() => import('./pages/Writing'))
+const Speaking = lazy(() => import('./pages/Speaking'))
+const Guide = lazy(() => import('./pages/Guide'))
+
+function Loading() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="text-gray-400 dark:text-gray-500 text-sm animate-pulse">Loading...</div>
+    </div>
+  )
+}
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary>
       <WelcomeModal />
       <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/listening" element={<Listening />} />
-          <Route path="/reading" element={<Reading />} />
-          <Route path="/writing" element={<Writing />} />
-          <Route path="/speaking" element={<Speaking />} />
-          <Route path="/guide" element={<Guide />} />
-        </Routes>
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            <Route path="/" element={<ErrorBoundary><Home /></ErrorBoundary>} />
+            <Route path="/listening" element={<ErrorBoundary><Listening /></ErrorBoundary>} />
+            <Route path="/reading" element={<ErrorBoundary><Reading /></ErrorBoundary>} />
+            <Route path="/writing" element={<ErrorBoundary><Writing /></ErrorBoundary>} />
+            <Route path="/speaking" element={<ErrorBoundary><Speaking /></ErrorBoundary>} />
+            <Route path="/guide" element={<ErrorBoundary><Guide /></ErrorBoundary>} />
+          </Routes>
+        </Suspense>
       </Layout>
-    </>
+    </ErrorBoundary>
   )
 }

@@ -55,6 +55,12 @@ export default function Reading() {
     setTimerRunning(false)
   }
 
+  function handleBack() {
+    if (answeredCount > 0 && !window.confirm('You have unanswered questions. Are you sure you want to leave?')) return
+    setActivePassage(null)
+    setTimerRunning(false)
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -114,7 +120,7 @@ export default function Reading() {
         <div>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <button
-              onClick={() => { setActivePassage(null); setTimerRunning(false) }}
+              onClick={handleBack}
               className="btn-secondary text-sm"
             >
               ← Back to passages

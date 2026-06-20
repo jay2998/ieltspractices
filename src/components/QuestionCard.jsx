@@ -10,6 +10,42 @@ function shuffle(arr) {
   return a
 }
 
+function normalizeText(text) {
+  return text.trim().toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/\s*\([^)]*\)/g, '').replace(/[^a-z0-9\s\/-]/g, '').trim()
+}
+
+function wordsEqual(a, b) {
+  if (a === b) return true
+  const aWords = a.split(/\s+/)
+  const bWords = b.split(/\s+/)
+  if (aWords.length !== bWords.length) return false
+  return aWords.every((w, i) => w === bWords[i])
+}
+
+function checkAnswer(userAnswer, correctAnswer, questionType) {
+  const user = normalizeText(userAnswer)
+  const correct = normalizeText(correctAnswer)
+  if (user === correct) return true
+
+  if (correctAnswer.includes(' / ')) {
+    const multiPart = questionType === 'summary-completion' || questionType === 'note-completion' || questionType === 'table-completion' || questionType === 'form-completion'
+    if (multiPart) {
+      const parts = correct.split('/').map(a => a.trim()).filter(Boolean)
+      const userParts = user.split('/').map(a => a.trim()).filter(Boolean)
+      if (userParts.length === 0) return false
+      if (userParts.length !== parts.length) return false
+      return parts.every((part, i) => wordsEqual(part, userParts[i]))
+    }
+    const hasSlashAlternatives = questionType === 'short-answer' || questionType === 'diagram-labeling' || questionType === 'map-labeling' || questionType === 'sentence-completion'
+    if (hasSlashAlternatives) {
+      const alternatives = correct.split('/').map(a => a.trim())
+      return alternatives.some(alt => wordsEqual(user, alt))
+    }
+  }
+
+  return false
+}
+
 export default function QuestionCard({ question, onAnswer, showResult, questionNumber }) {
   const [selected, setSelected] = useState('')
   const [textAnswer, setTextAnswer] = useState('')
@@ -49,7 +85,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
       return { features: shuffled, answer: newAnswer }
     }
     return {}
-  }, [question.id])
+  }, [question.id, question.options, question.matches, question.headings, question.features])
 
   const displayAnswer = shuffled.answer || question.answer
 
@@ -58,7 +94,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
     if (isSelectedType) {
       onAnswer(selected === displayAnswer)
     } else {
-      onAnswer(isAnswerCorrect(textAnswer, question.answer))
+      onAnswer(checkAnswer(textAnswer, question.answer, question.type))
     }
     setRevealed(true)
   }
@@ -66,48 +102,6 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   function handleBookmark() {
     const updated = toggleBookmark(question.id)
     setBookmarked(updated.includes(question.id))
-  }
-
-  function normalizeText(text) {
-    return text.trim().toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/\s*\([^)]*\)/g, '').replace(/[^a-z0-9\s\/-]/g, '').trim()
-  }
-
-  function isAnswerCorrect(userAnswer, correctAnswer) {
-    const user = normalizeText(userAnswer)
-    const multiPart = question.type === 'summary-completion' || question.type === 'note-completion' || question.type === 'table-completion' || question.type === 'form-completion'
-    if (multiPart && correctAnswer.includes(' / ')) {
-      const parts = correctAnswer.split(' / ').map(a => normalizeText(a))
-      const userParts = user.split('/').map(a => a.trim()).filter(Boolean)
-      if (userParts.length === 0) return false
-      let matchedCount = 0
-      for (const part of parts) {
-        for (const up of userParts) {
-          if (up === part || up.includes(part) || part.includes(up)) {
-            matchedCount++
-            break
-          }
-        }
-      }
-      if (matchedCount >= parts.length) return true
-    }
-    const hasSlashAlternatives = question.type === 'short-answer' || question.type === 'diagram-labeling' || question.type === 'map-labeling' || question.type === 'sentence-completion'
-    if (hasSlashAlternatives && correctAnswer.includes(' / ')) {
-      const alternatives = correctAnswer.split(' / ').map(a => normalizeText(a))
-      for (const alt of alternatives) {
-        if (user === alt || user.includes(alt) || alt.includes(user)) return true
-      }
-    }
-    const correct = normalizeText(correctAnswer)
-    if (user === correct) return true
-    if (user.includes(correct) || correct.includes(user)) return true
-    const stopWords = new Set(['the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'are', 'was', 'were'])
-    const userWords = user.split(/\s+/).filter(w => !stopWords.has(w) && w.length > 0)
-    const correctWords = correct.split(/\s+/).filter(w => !stopWords.has(w) && w.length > 0)
-    if (userWords.length > 0 && correctWords.length > 0) {
-      const matchCount = userWords.filter(w => correctWords.some(cw => cw.includes(w) || w.includes(cw))).length
-      if (matchCount >= Math.min(userWords.length, correctWords.length)) return true
-    }
-    return false
   }
 
   const displayOptions = shuffled.options || question.options
@@ -131,8 +125,14 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   const answerCorrect = revealed && (
     isMCQ || isDropDownMatch || question.type === 'true-false-not-given' || question.type === 'yes-no-not-given'
       ? selected === displayAnswer
-      : isAnswerCorrect(textAnswer, question.answer)
+      : checkAnswer(textAnswer, question.answer, question.type)
   )
+
+  const textPlaceholder = question.type === 'form-completion' || question.type === 'note-completion' || question.type === 'table-completion'
+    ? 'ONE WORD AND/OR A NUMBER'
+    : question.type === 'summary-completion'
+      ? 'NO MORE THAN THREE WORDS'
+      : 'Type your answer...'
 
   return (
     <div className={`card mb-4 border-l-4 ${
@@ -160,7 +160,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
       )}
 
       {isMCQ && displayOptions && (
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2 mb-4" role="radiogroup" aria-label="Answer options">
           {displayOptions.map((opt, idx) => {
             const letter = String.fromCharCode(65 + idx)
             const isSelected = selected === letter
@@ -168,6 +168,8 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
             return (
               <button
                 key={idx}
+                role="radio"
+                aria-checked={isSelected}
                 onClick={() => !revealed && setSelected(letter)}
                 className={`w-full text-left p-3 rounded-lg border transition-colors ${
                   revealed
@@ -192,11 +194,13 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
 
       {isTextInput && (
         <div className="mb-4">
+          <label htmlFor={`answer-${question.id}`} className="sr-only">Your answer</label>
           <input
+            id={`answer-${question.id}`}
             type="text"
             value={textAnswer}
             onChange={e => setTextAnswer(e.target.value)}
-            placeholder="Type your answer..."
+            placeholder={textPlaceholder}
             className="input-field"
             disabled={revealed}
           />
@@ -204,40 +208,47 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
       )}
 
       {(question.type === 'true-false-not-given' || question.type === 'yes-no-not-given') && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {['True', 'False', 'Not Given'].map(opt => {
-            const value = question.type === 'yes-no-not-given'
-              ? opt.replace('True', 'Yes').replace('False', 'No')
-              : opt
-            const isSelected = selected === value
-            const isCorrect = value === question.answer
-            return (
-              <button
-                key={opt}
-                onClick={() => !revealed && setSelected(value)}
-                className={`px-4 py-2 rounded-lg border transition-colors ${
-                  revealed
-                    ? isCorrect
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
-                      : isSelected && !isCorrect
-                        ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
-                        : 'border-gray-200 dark:border-gray-600'
-                    : isSelected
-                      ? 'bg-ielts-50 border-ielts-500'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-ielts-300'
-                }`}
-                disabled={revealed}
-              >
-                {value}
-              </button>
-            )
-          })}
-        </div>
+        <fieldset className="mb-4">
+          <legend className="sr-only">Select true, false, or not given</legend>
+          <div className="flex flex-wrap gap-2">
+            {['True', 'False', 'Not Given'].map(opt => {
+              const value = question.type === 'yes-no-not-given'
+                ? opt.replace('True', 'Yes').replace('False', 'No')
+                : opt
+              const isSelected = selected === value
+              const isCorrect = value === question.answer
+              return (
+                <button
+                  key={opt}
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => !revealed && setSelected(value)}
+                  className={`px-4 py-2 rounded-lg border transition-colors ${
+                    revealed
+                      ? isCorrect
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
+                        : isSelected && !isCorrect
+                          ? 'bg-red-50 dark:bg-red-900/20 border-red-500'
+                          : 'border-gray-200 dark:border-gray-600'
+                      : isSelected
+                        ? 'bg-ielts-50 border-ielts-500'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-ielts-300'
+                  }`}
+                  disabled={revealed}
+                >
+                  {value}
+                </button>
+              )
+            })}
+          </div>
+        </fieldset>
       )}
 
       {isDropDownMatch && matchItems.length > 0 && (
         <div className="mb-4">
+          <label htmlFor={`match-${question.id}`} className="sr-only">Select match</label>
           <select
+            id={`match-${question.id}`}
             value={selected}
             onChange={e => setSelected(e.target.value)}
             className="input-field"

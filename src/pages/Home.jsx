@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getStats, getActiveUser } from '../utils/storage'
+import { listeningData } from '../data/listening'
+import { readingData } from '../data/reading'
+import { writingData } from '../data/writing'
+import { speakingData } from '../data/speaking'
 
 const skills = [
   {
@@ -64,18 +68,25 @@ const skills = [
 export default function Home() {
   const [stats, setStats] = useState({})
   const [greeting, setGreeting] = useState('')
+  const totals = {
+    listening: listeningData.sections.reduce((s, sec) => s + sec.questions.length, 0),
+    reading: readingData.passages.reduce((s, p) => s + p.questions.length, 0),
+    writing: writingData.task1.length + writingData.task2.length,
+    speaking: speakingData.part1.length + speakingData.part2.length + speakingData.part3.length,
+  }
 
   useEffect(() => {
-    setStats(getStats())
+    setStats(getStats(totals))
     const h = new Date().getHours()
     if (h < 12) setGreeting('Good morning')
     else if (h < 18) setGreeting('Good afternoon')
     else setGreeting('Good evening')
   }, [])
 
-  const totalAnswered = Object.values(stats).reduce((sum, s) => sum + s.total, 0)
   const totalCorrect = Object.values(stats).reduce((sum, s) => sum + s.correct, 0)
-  const overallPct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
+  const totalAnswered = Object.values(stats).reduce((sum, s) => sum + s.answered, 0)
+  const totalAvailable = Object.values(totals).reduce((sum, t) => sum + t, 0)
+  const overallPct = totalAvailable > 0 ? Math.round((totalAnswered / totalAvailable) * 100) : 0
 
   return (
     <div>
@@ -97,14 +108,22 @@ export default function Home() {
             <span className="text-3xl font-bold">{overallPct}%</span>
           </div>
           <div className="w-full bg-white/20 rounded-full h-3 mb-4">
-            <div className="bg-white h-3 rounded-full transition-all" style={{ width: `${overallPct}%` }} />
+            <div
+              className="bg-white h-3 rounded-full transition-all"
+              role="progressbar"
+              aria-valuenow={totalAnswered}
+              aria-valuemin={0}
+              aria-valuemax={totalAvailable}
+              aria-valuetext={`${totalAnswered} of ${totalAvailable} questions completed`}
+              style={{ width: `${overallPct}%` }}
+            />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             {Object.entries(stats).map(([key, val]) => (
               <div key={key} className="text-center">
-                <div className="text-2xl font-bold">{val.total}</div>
+                <div className="text-2xl font-bold">{val.answered}</div>
                 <div className="text-white/70 capitalize">{key}</div>
-                <div className="text-white/80 text-xs">{val.correct} correct</div>
+                <div className="text-white/80 text-xs">{val.answered}/{val.total} · {val.correct} correct</div>
               </div>
             ))}
           </div>
@@ -116,7 +135,7 @@ export default function Home() {
         <div className="card mb-8 bg-gradient-to-r from-amber-500 to-orange-600 text-white">
           <h2 className="text-lg font-semibold mb-2">🎯 Target: Band 7+</h2>
           <p className="text-white/90 text-sm mb-4">
-            Start practicing now! We have {skills.length * 50}+ questions across all 4 skills to help you achieve your target score.
+            Start practicing now! We have {totalAvailable} questions across all 4 skills to help you achieve your target score.
           </p>
           <div className="flex gap-2">
             {skills.map(s => (
@@ -148,7 +167,7 @@ export default function Home() {
                   {s && (
                     <div className="text-2xl font-bold text-ielts-600">{s.percentage}%</div>
                   )}
-                  {s && <div className="text-xs text-gray-400">{s.correct}/{s.total}</div>}
+                  {s && <div className="text-xs text-gray-400">{s.correct} correct of {s.answered}</div>}
                 </div>
               </div>
 

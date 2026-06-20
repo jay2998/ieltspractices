@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { writingData } from '../data/writing'
-import { saveProgress } from '../utils/storage'
+import { saveProgress, getActiveUser } from '../utils/storage'
 import Timer from '../components/Timer'
 import ProgressBar from '../components/ProgressBar'
 import ChartVisual, { parseChartDescription } from '../components/ChartVisual'
@@ -21,6 +21,25 @@ const writingGuide = {
   ],
 }
 
+const DRAFT_KEY = () => `ielts_${getActiveUser()}_writing_draft`
+
+function loadDraft() {
+  try {
+    const saved = localStorage.getItem(DRAFT_KEY())
+    return saved ? JSON.parse(saved) : null
+  } catch {
+    return null
+  }
+}
+
+function saveDraft(taskId, answer) {
+  localStorage.setItem(DRAFT_KEY(), JSON.stringify({ taskId, answer }))
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY())
+}
+
 export default function Writing() {
   const [showGuide, setShowGuide] = useState(false)
   const [activeTab, setActiveTab] = useState('task1')
@@ -31,6 +50,22 @@ export default function Writing() {
   const [submittedTasks, setSubmittedTasks] = useState(0)
 
   const tasks = activeTab === 'task1' ? writingData.task1 : writingData.task2
+
+  useEffect(() => {
+    if (activeTask) {
+      const draft = loadDraft()
+      if (draft && draft.taskId === activeTask.id) {
+        setUserAnswer(draft.answer)
+      }
+    }
+  }, [activeTask])
+
+  useEffect(() => {
+    if (activeTask && userAnswer) {
+      const timer = setTimeout(() => saveDraft(activeTask.id, userAnswer), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [userAnswer, activeTask])
 
   function startTask(task) {
     setActiveTask(task)
@@ -44,6 +79,7 @@ export default function Writing() {
     setTimerRunning(false)
     setSubmittedTasks(prev => prev + 1)
     saveProgress('writing', activeTask.id, { correct: true, wordCount: userAnswer.split(/\s+/).filter(Boolean).length })
+    clearDraft()
   }
 
   const wordCount = userAnswer.split(/\s+/).filter(Boolean).length
@@ -80,7 +116,7 @@ export default function Writing() {
       {/* Tab selector */}
       <div className="flex gap-2 mb-6">
           <button
-            onClick={() => { setActiveTab('task1'); setActiveTask(null); setShowModel(false) }}
+            onClick={() => { if (activeTask && userAnswer && !window.confirm('Discard your current answer?')) return; setActiveTab('task1'); setActiveTask(null); setShowModel(false); clearDraft() }}
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === 'task1'
                 ? 'bg-red-700 text-white'
@@ -90,7 +126,7 @@ export default function Writing() {
             📊 Task 1 (Academic)
           </button>
           <button
-            onClick={() => { setActiveTab('task2'); setActiveTask(null); setShowModel(false) }}
+            onClick={() => { if (activeTask && userAnswer && !window.confirm('Discard your current answer?')) return; setActiveTab('task2'); setActiveTask(null); setShowModel(false); clearDraft() }}
             className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
               activeTab === 'task2'
                 ? 'bg-red-700 text-white'
@@ -132,7 +168,7 @@ export default function Writing() {
         <div>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <button
-              onClick={() => { setActiveTask(null); setShowModel(false); setTimerRunning(false) }}
+              onClick={() => { if (userAnswer && !showModel && !window.confirm('Discard your current answer?')) return; setActiveTask(null); setShowModel(false); setTimerRunning(false) }}
               className="btn-secondary text-sm"
             >
               ← Back to tasks
@@ -172,12 +208,15 @@ export default function Writing() {
           {/* Your answer */}
           <div className="card mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Your Answer</h3>
+              <h3 className="font-semibold">
+                <label htmlFor="writing-answer">Your Answer</label>
+              </h3>
               <span className={`text-sm font-medium ${wordCount < (activeTab === 'task1' ? 150 : 250) ? 'text-red-500' : 'text-green-500'}`}>
                 {wordCount} words
               </span>
             </div>
             <textarea
+              id="writing-answer"
               value={userAnswer}
               onChange={e => setUserAnswer(e.target.value)}
               placeholder="Write your answer here..."
@@ -203,7 +242,6 @@ export default function Writing() {
           {/* Model answer */}
           {showModel && (
             <div className="space-y-6">
-              {/* Model answer */}
               <div className="card border-l-4 border-red-500">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -218,13 +256,11 @@ export default function Writing() {
                 </div>
               </div>
 
-              {/* Examiner notes */}
               <div className="card border-l-4 border-amber-500">
                 <h3 className="font-semibold mb-2 flex items-center gap-2">👨‍🏫 Examiner Notes</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{activeTask.examinerNotes}</p>
               </div>
 
-              {/* Vocabulary */}
               <div className="card border-l-4 border-green-500">
                 <h3 className="font-semibold mb-2 flex items-center gap-2">📚 Key Vocabulary</h3>
                 <div className="flex flex-wrap gap-2">
@@ -236,13 +272,11 @@ export default function Writing() {
                 </div>
               </div>
 
-              {/* Structure */}
               <div className="card border-l-4 border-red-400">
                 <h3 className="font-semibold mb-2 flex items-center gap-2">📐 Suggested Structure</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{activeTask.structure}</p>
               </div>
 
-              {/* Compare your answer */}
               <div className="card bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20">
                 <h3 className="font-semibold mb-3">📊 Your Answer vs Model</h3>
                 <div className="grid grid-cols-2 gap-4 text-center">

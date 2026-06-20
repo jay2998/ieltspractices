@@ -98,7 +98,7 @@ export function getStats(totals) {
     stats[skill] = {
       answered,
       correct,
-      total: answered,
+      total: totalAvailable || answered,
       percentage: totalAvailable
         ? Math.round((answered / totalAvailable) * 100)
         : answered > 0 ? Math.round((correct / answered) * 100) : 0

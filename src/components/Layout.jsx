@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { getTheme, setTheme, getStats, getActiveUser, setActiveUser, getUsers, addUser, renameUser } from '../utils/storage'
 import { listeningData } from '../data/listening'
 import { readingData } from '../data/reading'
 import { writingData } from '../data/writing'
 import { speakingData } from '../data/speaking'
+
+const pageTitles = {
+  '/': 'Home',
+  '/listening': 'Listening',
+  '/reading': 'Reading',
+  '/writing': 'Writing',
+  '/speaking': 'Speaking',
+  '/guide': 'Guide',
+}
 
 const navItems = [
   { path: '/', label: 'Home', icon: '📊', accent: 'hover:border-gray-400' },
@@ -61,6 +70,8 @@ function UserMenu({ dark }) {
       <button
         onClick={() => setShowMenu(!showMenu)}
         className="flex items-center gap-2 hover:bg-white/10 rounded-lg px-2 py-1.5 transition-colors w-full text-left"
+        aria-expanded={showMenu}
+        aria-haspopup="true"
       >
         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${dark ? 'bg-white/20 text-white' : 'bg-ielts-200 text-ielts-800'}`}>
           {user.charAt(0).toUpperCase()}
@@ -160,10 +171,27 @@ export default function Layout({ children }) {
   }
   const [stats, setStats] = useState(getStats(totals))
   const [user, setUser] = useState(getActiveUser())
+  const drawerRef = useRef(null)
 
   useEffect(() => {
     setStats(getStats(totals))
   }, [location])
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    const title = pageTitles[location.pathname]
+    document.title = title ? `${title} · IELTS Trainer` : 'IELTS Trainer'
+  }, [location])
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && menuOpen) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [menuOpen])
 
   function toggleTheme() {
     const next = !dark
@@ -179,10 +207,15 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row pb-16 md:pb-0">
+      {/* Skip to content */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-gray-900 focus:rounded-lg focus:shadow-lg">
+        Skip to content
+      </a>
+
       {/* Mobile header */}
       <header className="md:hidden bg-gradient-to-r from-ielts-800 to-red-900 text-white px-4 py-3 flex items-center justify-between shadow-lg sticky top-0 z-30">
         <Link to="/" onClick={closeMenu} className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
+          <span className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold" aria-hidden="true">
             {user.charAt(0).toUpperCase()}
           </span>
           <span className="text-lg font-bold tracking-tight truncate max-w-[160px]">{user}</span>
@@ -191,7 +224,7 @@ export default function Layout({ children }) {
           <button onClick={toggleTheme} className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-lg active:bg-white/20 transition-colors" aria-label="Toggle theme">
             {dark ? '☀️' : '🌙'}
           </button>
-          <button onClick={() => setMenuOpen(!menuOpen)} className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-lg active:bg-white/20 transition-colors" aria-label="Menu">
+          <button onClick={() => setMenuOpen(!menuOpen)} className="w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center text-lg active:bg-white/20 transition-colors" aria-label="Menu" aria-expanded={menuOpen}>
             {menuOpen ? (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             ) : (
@@ -207,16 +240,22 @@ export default function Layout({ children }) {
       )}
 
       {/* Mobile drawer */}
-      <aside className={`
-        md:hidden fixed inset-y-0 right-0 z-30 w-72
-        bg-gradient-to-b from-ielts-800 to-red-950 text-white
-        transform transition-transform duration-300 ease-out
-        ${menuOpen ? 'translate-x-0' : 'translate-x-full'}
-        shadow-2xl
-      `}>
+      <aside
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
+        className={`
+          md:hidden fixed inset-y-0 right-0 z-30 w-72
+          bg-gradient-to-b from-ielts-800 to-red-950 text-white
+          transform transition-transform duration-300 ease-out
+          ${menuOpen ? 'translate-x-0' : 'translate-x-full'}
+          shadow-2xl
+        `}
+      >
         <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <span className="text-lg font-bold">More</span>
-          <button onClick={closeMenu} className="w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center" aria-label="Close">
+          <span className="text-lg font-bold">Navigation</span>
+          <button onClick={closeMenu} className="w-9 h-9 rounded-lg hover:bg-white/10 flex items-center justify-center" aria-label="Close menu">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -225,7 +264,7 @@ export default function Layout({ children }) {
           <UserMenu dark />
         </div>
 
-        <nav className="p-3 space-y-0.5">
+        <nav className="p-3 space-y-0.5" aria-label="Main navigation">
           {[...navItems, ...moreItems].map(item => {
             const active = item.path === location.pathname
             return (
@@ -233,6 +272,7 @@ export default function Layout({ children }) {
                 key={item.path}
                 to={item.path}
                 onClick={closeMenu}
+                aria-current={active ? 'page' : undefined}
                 className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   active
                     ? 'bg-white/15 text-white shadow-sm'
@@ -242,7 +282,7 @@ export default function Layout({ children }) {
                 {active && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-red-400 rounded-r-full" />
                 )}
-                <span className="text-xl flex-shrink-0">{item.icon}</span>
+                <span className="text-xl flex-shrink-0" aria-hidden="true">{item.icon}</span>
                 <span>{item.label}</span>
                 {item.path !== '/' && stats[item.label.toLowerCase()] && (
                   <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -266,7 +306,7 @@ export default function Layout({ children }) {
               {Object.entries(stats).map(([key, val]) => (
                 <div key={key} className="flex items-center gap-2 text-sm group">
                   <span className="capitalize text-ielts-200 w-[4.5rem] text-xs">{key}</span>
-                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden" role="progressbar" aria-valuenow={val.answered} aria-valuemin={0} aria-valuemax={val.total} aria-valuetext={`${val.answered} of ${val.total}`}>
                     <div className="bg-red-400 h-full rounded-full transition-all duration-500 group-hover:bg-red-300"
                       style={{ width: `${val.percentage}%` }}
                     />
@@ -293,13 +333,14 @@ export default function Layout({ children }) {
           </button>
         </div>
 
-        <nav className="p-3 space-y-0.5 mt-1 flex-1 overflow-y-auto">
+        <nav className="p-3 space-y-0.5 mt-1 flex-1 overflow-y-auto" aria-label="Main navigation">
           {[...navItems, ...moreItems].map(item => {
             const active = item.path === location.pathname
             return (
               <Link
                 key={item.path}
                 to={item.path}
+                aria-current={active ? 'page' : undefined}
                 className={`relative flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all group ${
                   active
                     ? 'bg-white/15 text-white shadow-sm'
@@ -309,7 +350,7 @@ export default function Layout({ children }) {
                 {active && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-red-400 rounded-r-full" />
                 )}
-                <span className="text-lg flex-shrink-0">{item.icon}</span>
+                <span className="text-lg flex-shrink-0" aria-hidden="true">{item.icon}</span>
                 <span>{item.label}</span>
                 {item.path !== '/' && stats[item.label.toLowerCase()] && (
                   <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -333,7 +374,7 @@ export default function Layout({ children }) {
               {Object.entries(stats).map(([key, val]) => (
                 <div key={key} className="flex items-center gap-2 text-sm group">
                   <span className="capitalize text-ielts-200 w-[4.5rem] text-xs">{key}</span>
-                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden" role="progressbar" aria-valuenow={val.answered} aria-valuemin={0} aria-valuemax={val.total} aria-valuetext={`${val.answered} of ${val.total}`}>
                     <div className="bg-red-400 h-full rounded-full transition-all duration-500" style={{ width: `${val.percentage}%` }} />
                   </div>
                   <span className="text-xs text-ielts-300 w-8 text-right tabular-nums">{val.percentage}%</span>
@@ -351,12 +392,12 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main content */}
-      <main key={location.pathname} className="flex-1 p-4 md:p-8 overflow-auto max-w-5xl mx-auto w-full min-h-screen fade-in">
+      <main id="main-content" key={location.pathname} className="flex-1 p-4 md:p-8 overflow-auto max-w-5xl mx-auto w-full min-h-screen fade-in">
         {children}
       </main>
 
       {/* Mobile bottom navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 safe-area-bottom" aria-label="Bottom navigation">
         <div className="flex items-center justify-around px-1 py-1">
           {navItems.map(item => {
             const active = item.path === location.pathname
@@ -364,13 +405,14 @@ export default function Layout({ children }) {
               <Link
                 key={item.path}
                 to={item.path}
+                aria-current={active ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl min-w-[3.5rem] transition-colors ${
                   active
                     ? 'text-ielts-600 dark:text-ielts-400'
                     : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                 }`}
               >
-                <span className="text-xl leading-none mb-0.5">{item.icon}</span>
+                <span className="text-xl leading-none mb-0.5" aria-hidden="true">{item.icon}</span>
                 <span className={`text-[10px] font-medium leading-tight ${active ? 'font-semibold' : ''}`}>{item.label}</span>
                 {active && <span className="w-1 h-1 rounded-full bg-ielts-500 mt-0.5" />}
               </Link>
@@ -378,13 +420,14 @@ export default function Layout({ children }) {
           })}
           <Link
             to="/guide"
+            aria-current={isMoreActive ? 'page' : undefined}
             className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl min-w-[3.5rem] transition-colors ${
               isMoreActive
                 ? 'text-ielts-600 dark:text-ielts-400'
                 : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
             }`}
           >
-            <span className="text-xl leading-none mb-0.5">🎯</span>
+            <span className="text-xl leading-none mb-0.5" aria-hidden="true">🎯</span>
             <span className={`text-[10px] font-medium leading-tight ${isMoreActive ? 'font-semibold' : ''}`}>Guide</span>
             {isMoreActive && <span className="w-1 h-1 rounded-full bg-ielts-500 mt-0.5" />}
           </Link>

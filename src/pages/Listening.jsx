@@ -45,8 +45,7 @@ export default function Listening() {
 
   function handleAnswer(questionId, correct) {
     setAnswers(prev => ({ ...prev, [questionId]: correct }))
-    const skill = 'listening'
-    saveProgress(skill, questionId, { correct })
+    saveProgress('listening', questionId, { correct })
   }
 
   const answeredCount = Object.keys(answers).length
@@ -54,6 +53,12 @@ export default function Listening() {
 
   function handleTimeUp() {
     setShowResults(true)
+    setTimerRunning(false)
+  }
+
+  function handleBack() {
+    if (answeredCount > 0 && !window.confirm('You have unanswered questions. Are you sure you want to leave?')) return
+    setActiveSection(null)
     setTimerRunning(false)
   }
 
@@ -116,7 +121,7 @@ export default function Listening() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <button
-              onClick={() => { setActiveSection(null); setTimerRunning(false) }}
+              onClick={handleBack}
               className="btn-secondary text-sm"
             >
               ← Back to sections
