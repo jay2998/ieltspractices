@@ -25,6 +25,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   const isMCQ = question.type === 'multiple-choice'
   const isForm = question.type?.includes('form') || question.type?.includes('note') || question.type?.includes('table')
   const isMatching = question.type === 'matching'
+  const isTextInput = isForm || question.type === 'short-answer' || question.type === 'sentence-completion' || question.type === 'summary-completion' || question.type === 'map-labeling' || question.type === 'diagram-labeling'
   const isDropDownMatch = isMatching || question.type === 'matching-headings' || question.type === 'matching-features' || question.type === 'matching-information'
 
   function normalizeText(text) {
@@ -33,7 +34,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
 
   function isAnswerCorrect(userAnswer, correctAnswer) {
     const user = normalizeText(userAnswer)
-    const hasSlashAlternatives = question.type === 'short-answer' || question.type === 'diagram-labeling' || question.type === 'sentence-completion'
+    const hasSlashAlternatives = question.type === 'short-answer' || question.type === 'diagram-labeling' || question.type === 'map-labeling' || question.type === 'sentence-completion'
     if (hasSlashAlternatives && correctAnswer.includes(' / ')) {
       const alternatives = correctAnswer.split(' / ').map(a => normalizeText(a))
       for (const alt of alternatives) {
@@ -130,8 +131,8 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         </div>
       )}
 
-      {/* Form/Short answer */}
-      {(isForm || question.type === 'short-answer' || question.type === 'sentence-completion' || question.type === 'summary-completion') && (
+      {/* Text input (form, short-answer, map-labeling, etc.) */}
+      {isTextInput && (
         <div className="mb-4">
           <input
             type="text"
