@@ -2,6 +2,7 @@
   "name": "ielts-trainer",
   "private": true,
   "version": "1.0.0",
+  "homepage": "https://ieltstrainpractice.netlify.app",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

@@ -168,7 +168,13 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
 
       {isDropDownMatch && (
         <MatchingDropdown
-          question={question}
+          question={{
+            ...question,
+            headings: shuffled.headings || question.headings,
+            features: shuffled.features || question.features,
+            matches: shuffled.matches || question.matches,
+            answer: displayAnswer
+          }}
           revealed={revealed}
           selected={selected}
           onSelect={setSelected}
@@ -188,7 +194,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
       {revealed && (
         <AnswerReveal
           correct={answerCorrect}
-          answer={question.answer}
+          answer={displayAnswer}
           explanation={question.explanation}
           userAnswer={isMCQ || isDropDownMatch || isTFNG ? selected : textAnswer}
         />
