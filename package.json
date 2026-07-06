@@ -5,8 +5,8 @@
   "homepage": "https://ieltstrainpractice.netlify.app",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "dev": "node init && vite --host 0.0.0.0",
+    "build": "node init && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "serve": "vite preview --host 0.0.0.0 --port 3000",
     "portable": "vite build --mode portable",

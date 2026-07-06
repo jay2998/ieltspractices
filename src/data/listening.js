@@ -346,7 +346,7 @@ TUTOR: Precisely. Context matters enormously in technology assessment. I think y
             'Advocacy coalition framework': 'Analyses the role of policy actors and belief systems in policy change'
           },
           instructions: 'Write the correct letter next to each framework.',
-          answer: 'Multi-Level Perspective framework',
+          answer: { 'Multi-Level Perspective framework': 'A', 'Advocacy coalition framework': 'B' },
           explanation: 'James describes the MLP as "looking at the socio-technical transitions at niche, regime, and landscape levels".'
         },
         {
@@ -359,7 +359,7 @@ TUTOR: Precisely. Context matters enormously in technology assessment. I think y
             'Norway': 'Provides hydroelectric storage reference point'
           },
           instructions: 'Write the correct letter next to each country.',
-          answer: 'UK',
+          answer: { 'UK': 'A', 'Denmark': 'B', 'Norway': 'C' },
           explanation: 'James identifies the UK\'s energy statistics source and Denmark\'s wind integration success, while Priya suggests Norway as a reference.'
         },
         {
@@ -732,7 +732,7 @@ Conservation strategies are evolving in response. The traditional approach of es
             'Bark beetle': 'Contributes to regime shifts in boreal forests'
           },
           instructions: 'Write the correct letter next to each item.',
-          answer: 'Great tit',
+          answer: { 'Great tit': 'A', 'Winter moth': 'B', 'Coral': 'C', 'Bark beetle': 'D' },
           explanation: 'Great tits experience "trophic mismatches" when caterpillar food sources emerge earlier.'
         },
         {
@@ -743,8 +743,8 @@ Conservation strategies are evolving in response. The traditional approach of es
             'Species keeping pace with phenology shifts': '30%',
             'Species falling behind in phenology adaptation': '70%'
           },
-          instructions: 'Write the correct letter next to each percentage.',
-          answer: '30%',
+          instructions: 'Write the correct letter next to each research finding.',
+          answer: { 'Species keeping pace with phenology shifts': 'A', 'Species falling behind in phenology adaptation': 'B' },
           explanation: '"Only about 30 percent of species are shifting their phenology at a rate sufficient to keep pace."'
         },
         {

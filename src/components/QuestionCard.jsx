@@ -51,6 +51,7 @@ function checkAnswer(userAnswer, correctAnswer, questionType) {
 
 export default function QuestionCard({ question, onAnswer, showResult, questionNumber }) {
   const [selected, setSelected] = useState('')
+  const [matchingSelections, setMatchingSelections] = useState({})
   const [textAnswer, setTextAnswer] = useState('')
   const [bookmarked, setBookmarked] = useState(() => getBookmarks().includes(question.id))
   const [revealed, setRevealed] = useState(false)
@@ -71,8 +72,19 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
       return { options: shuffled, answer: newAnswer }
     }
     if (question.matches) {
-      const entries = shuffle(Object.entries(question.matches))
-      return { matches: Object.fromEntries(entries) }
+      const entries = Object.entries(question.matches)
+      const originalValues = entries.map(([, v]) => v)
+      const shuffledValues = shuffle(originalValues)
+      const answer = {}
+      entries.forEach(([key]) => {
+        const originalValue = question.matches[key]
+        const shuffledIdx = shuffledValues.indexOf(originalValue)
+        answer[key] = String.fromCharCode(65 + shuffledIdx)
+      })
+      return {
+        matches: Object.fromEntries(entries.map(([k], i) => [k, shuffledValues[i]])),
+        answer
+      }
     }
     if (question.headings) {
       const shuffled = shuffle(question.headings)
@@ -94,8 +106,10 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
   const displayAnswer = shuffled.answer || question.answer
 
   function handleSubmit() {
-    const isSelectedType = isMCQ || isDropDownMatch || isTFNG
-    if (isSelectedType) {
+    if (isMatching) {
+      const correct = Object.keys(displayAnswer).every(key => matchingSelections[key] === displayAnswer[key])
+      onAnswer(correct)
+    } else if (isMCQ || isDropDownMatch || isTFNG) {
       onAnswer(selected === displayAnswer)
     } else {
       onAnswer(checkAnswer(textAnswer, question.answer, question.type))
@@ -108,10 +122,20 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
     setBookmarked(updated.includes(question.id))
   }
 
+  const formattedAnswer = isMatching && typeof displayAnswer === 'object'
+    ? Object.entries(displayAnswer).map(([k, v]) => `${k}: ${v}`).join(' | ')
+    : displayAnswer
+
+  const formattedUserAnswer = isMatching
+    ? Object.entries(matchingSelections).map(([k, v]) => `${k}: ${v || '(no match)'}`).join(' | ')
+    : (isMCQ || isDropDownMatch || isTFNG ? selected : textAnswer)
+
   const answerCorrect = revealed && (
-    isMCQ || isDropDownMatch || isTFNG
-      ? selected === displayAnswer
-      : checkAnswer(textAnswer, question.answer, question.type)
+    isMatching
+      ? Object.keys(displayAnswer).every(key => matchingSelections[key] === displayAnswer[key])
+      : (isMCQ || isDropDownMatch || isTFNG
+        ? selected === displayAnswer
+        : checkAnswer(textAnswer, question.answer, question.type))
   )
 
   return (
@@ -166,13 +190,25 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
         />
       )}
 
-      {isDropDownMatch && (
+      {isMatching && (
+        <MatchingDropdown
+          question={{
+            ...question,
+            matches: shuffled.matches || question.matches,
+            answer: displayAnswer
+          }}
+          revealed={revealed}
+          selected={matchingSelections}
+          onSelect={setMatchingSelections}
+        />
+      )}
+
+      {isDropDownMatch && !isMatching && (
         <MatchingDropdown
           question={{
             ...question,
             headings: shuffled.headings || question.headings,
             features: shuffled.features || question.features,
-            matches: shuffled.matches || question.matches,
             answer: displayAnswer
           }}
           revealed={revealed}
@@ -184,7 +220,7 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
       {!revealed && (
         <button
           onClick={handleSubmit}
-          disabled={!selected && !textAnswer}
+          disabled={isMatching ? !Object.keys(shuffled.matches || question.matches).every(k => matchingSelections[k]) : (!selected && !textAnswer)}
           className="btn-primary text-sm"
         >
           Check Answer
@@ -194,9 +230,9 @@ export default function QuestionCard({ question, onAnswer, showResult, questionN
       {revealed && (
         <AnswerReveal
           correct={answerCorrect}
-          answer={displayAnswer}
+          answer={formattedAnswer}
           explanation={question.explanation}
-          userAnswer={isMCQ || isDropDownMatch || isTFNG ? selected : textAnswer}
+          userAnswer={formattedUserAnswer}
         />
       )}
     </div>
